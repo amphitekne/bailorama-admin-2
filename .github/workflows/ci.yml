@@ -35,7 +35,7 @@ jobs:
           context: .
           push: true
           build-args: |
-            VITE_BAILORAMA_API_URL=${{ vars.VITE_BAILORAMA_API_URL }}
+            BAILORAMA_API_URL=${{ vars.BAILORAMA_API_URL }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:production-${{ env.IMAGE_TAG }}
@@ -68,7 +68,7 @@ jobs:
           context: .
           push: true
           build-args: |
-            VITE_BAILORAMA_API_URL=${{ vars.VITE_BAILORAMA_API_URL }}
+            BAILORAMA_API_URL=${{ vars.BAILORAMA_API_URL }}
           tags: |
             ghcr.io/${{ github.repository }}:dev
             ghcr.io/${{ github.repository }}:development-${{ env.IMAGE_TAG }}

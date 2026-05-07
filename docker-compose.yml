@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - VITE_BAILORAMA_API_URL=${VITE_BAILORAMA_API_URL}
+        - BAILORAMA_API_URL=${BAILORAMA_API_URL}
     container_name: bailorama-admin-v2-prod
     ports:
       - "3001:80"

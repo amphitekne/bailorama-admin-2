@@ -7,16 +7,16 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Baked into the bundle at build time — provide via: docker build --build-arg VITE_BAILORAMA_API_URL=https://api.example.com/api .
-ARG VITE_BAILORAMA_API_URL
+# Baked into the bundle at build time — provide via: docker build --build-arg BAILORAMA_API_URL=https://api.example.com/api .
+ARG BAILORAMA_API_URL
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NODE_ENV=production
-ENV VITE_BAILORAMA_API_URL=${VITE_BAILORAMA_API_URL}
+ENV BAILORAMA_API_URL=${BAILORAMA_API_URL}
 
-RUN echo "VITE_BAILORAMA_API_URL (build-time) = '${VITE_BAILORAMA_API_URL}'"
+RUN echo "BAILORAMA_API_URL (build-time) = '${BAILORAMA_API_URL}'"
 RUN npm run build
 
 FROM nginx:alpine AS runner
