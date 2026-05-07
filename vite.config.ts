@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiUrl = env.VITE_BAILORAMA_API_URL ?? 'http://localhost:8180/api'
 
@@ -16,7 +16,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: '/admin/',
+    // Dev: served alongside other apps at /admin/. Build: relative paths so
+    // nginx can serve the bundle from whatever domain root it's mounted at.
+    base: command === 'serve' ? '/admin/' : './',
     server: {
       host: true,
       port: 5174,
