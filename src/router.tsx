@@ -43,4 +43,7 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <NotFoundPage /> },
-], { basename: '/admin' })
+], {
+  // Local dev runs under /admin; production runs at subdomain root.
+  basename: import.meta.env.DEV ? '/admin' : '/',
+})
