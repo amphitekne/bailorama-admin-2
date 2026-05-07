@@ -4,7 +4,6 @@ import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Alert } from '../../components/ui/Alert'
-import { Spinner } from '../../components/ui/Spinner'
 import { Checkbox } from '../../components/ui/Checkbox'
 import { apiClient } from '../../api/client'
 
