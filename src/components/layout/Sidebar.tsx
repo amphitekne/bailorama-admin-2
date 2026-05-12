@@ -1,4 +1,4 @@
-import { LayoutDashboard, Database, LogOut, ChevronRight, Zap, X } from 'lucide-react'
+import { LayoutDashboard, Database, LogOut, ChevronRight, Zap, X, Instagram } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { clearAccessToken } from '../../auth/tokenStorage'
 import { useSchema } from '../../context/SchemaContext'
@@ -73,6 +73,27 @@ export function Sidebar({ onClose }: SidebarProps) {
         >
           <Zap className="size-4 shrink-0" />
           Actions
+        </NavLink>
+
+        {/* Tools section */}
+        <div className="mt-4 mb-1 px-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-text/25">
+            Herramientas
+          </p>
+        </div>
+
+        <NavLink
+          to="/tools/instagram-post"
+          className={({ isActive }) =>
+            `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-primary/10 text-primary'
+                : 'text-text/50 hover:bg-overlay hover:text-text'
+            }`
+          }
+        >
+          <Instagram className="size-4 shrink-0" />
+          Post de Instagram
         </NavLink>
 
         {/* Resources section */}

@@ -10,6 +10,7 @@ import { ProcessEventFlyerDialog } from './ProcessEventFlyerDialog'
 import { CreateNewSocialEventDialog } from './CreateNewSocialEventDialog'
 import { AddSocialEventsFromPostDialog } from './AddSocialEventsFromPostDialog'
 import { ListSocialEventsByCityDialog } from './ListSocialEventsByCityDialog'
+import { EditSocialEventDialog } from './EditSocialEventDialog'
 import { AddVenueDialog } from './AddVenueDialog'
 import { AddLocationDialog } from './AddLocationDialog'
 import { AddInstagramAccountDialog } from './AddInstagramAccountDialog'
@@ -27,6 +28,7 @@ type ActionId =
   | 'create-new-social-event'
   | 'add-social-events-from-post'
   | 'list-social-events-by-city'
+  | 'edit-social-event'
   | 'add-venue'
   | 'add-location'
   | 'add-instagram-account'
@@ -116,6 +118,13 @@ const INSTAGRAM_ACTIONS: {
     description: 'View social events for a day grouped by city, with image and video generation.',
     accent: '#1e88e5',
     icon: '🏙',
+  },
+  {
+    id: 'edit-social-event',
+    title: 'Edit social event',
+    description: 'Edit social event fields and moderation flags, and optionally replace image.',
+    accent: '#00838f',
+    icon: '✎',
   },
 ]
 
@@ -292,6 +301,11 @@ export function ActionsPage() {
 
       <ListSocialEventsByCityDialog
         open={open === 'list-social-events-by-city'}
+        onClose={() => setOpen(null)}
+      />
+
+      <EditSocialEventDialog
+        open={open === 'edit-social-event'}
         onClose={() => setOpen(null)}
       />
 

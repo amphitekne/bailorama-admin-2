@@ -8,6 +8,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { ResourceListPage } from './pages/resources/ResourceListPage'
 import { ResourceFormPage } from './pages/resources/ResourceFormPage'
 import { ActionsPage } from './pages/actions/ActionsPage'
+import { InstagramPostPage } from './pages/tools/InstagramPostPage'
 
 function AuthGuard() {
   if (!getAccessToken()) {
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'actions', element: <ActionsPage /> },
+          { path: 'tools/instagram-post', element: <InstagramPostPage /> },
           { path: 'resources/:table', element: <ResourceListPage /> },
           { path: 'resources/:table/create', element: <ResourceFormPage /> },
           { path: 'resources/:table/:id', element: <ResourceFormPage /> },
