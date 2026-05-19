@@ -9,11 +9,14 @@ import { Alert } from '../../components/ui/Alert'
 import { Spinner } from '../../components/ui/Spinner'
 import { Checkbox } from '../../components/ui/Checkbox'
 import { apiClient } from '../../api/client'
+import { useTaskManager } from '../../context/TaskContext'
 import { AddVenueDialog } from './AddVenueDialog'
+import type { BackgroundTask } from '../../api/endpoints/tasks'
 
 interface Props {
   open: boolean
   onClose: () => void
+  resumeTask?: BackgroundTask
 }
 
 type PublisherRecord = {
@@ -103,7 +106,8 @@ function IconBtn({
   )
 }
 
-export function ProcessEventFlyerDialog({ open, onClose }: Props) {
+export function ProcessEventFlyerDialog({ open, onClose, resumeTask }: Props) {
+  const { tasks, registerTask, complete } = useTaskManager()
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -111,8 +115,9 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
   const [publisherId, setPublisherId] = useState('')
   const [publisherVenueId, setPublisherVenueId] = useState('')
   const [publisherVenueLoading, setPublisherVenueLoading] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'extracting' | 'sending' | 'success' | 'error'>('idle')
   const [statusMessage, setStatusMessage] = useState('')
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null)
 
   const [previewEvents, setPreviewEvents] = useState<EditableEvent[]>([])
   const [activeEventIndex, setActiveEventIndex] = useState<number | null>(null)
@@ -136,6 +141,29 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
   const [createLocationUrl, setCreateLocationUrl] = useState('')
   const [createLocationStatus, setCreateLocationStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [createLocationMsg, setCreateLocationMsg] = useState('')
+
+  // Pre-load state when resuming an awaiting_action task
+  useEffect(() => {
+    if (!open || !resumeTask) return
+    const extracted = (resumeTask.result?.social_events ?? []) as ExtractedEvent[]
+    const savedPublisherId = (resumeTask.input_summary?.publisher_id as string | undefined) ?? ''
+    setPublisherId(savedPublisherId)
+    if (extracted.length > 0) {
+      setPreviewEvents(extracted.map((e) => ({
+        include: true,
+        title: e.title ?? '',
+        description: e.description ?? '',
+        startsAt: toLocalDateTime(e.starts_at),
+        danceTypes: Array.isArray(e.dance_types) ? e.dance_types : [],
+        address: e.address ?? '',
+        venueDisplay: e.venue ?? '',
+        venueId: '',
+        inheritFromPublisher: false,
+        locationId: '',
+        forceActivation: false,
+      })))
+    }
+  }, [open, resumeTask])
 
   useEffect(() => {
     if (!file) { setPreviewUrl(null); return }
@@ -222,43 +250,60 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
     setPreviewEvents((prev) => prev.map((e, i) => i === index ? { ...e, ...patch } : e))
   }
 
+  // Watch the pending extraction task and auto-populate preview when done
+  useEffect(() => {
+    if (!pendingTaskId) return
+    const task = tasks.find((t) => t.id === pendingTaskId)
+    if (!task || task.status === 'pending') return
+
+    if (task.status === 'awaiting_action' || task.status === 'done') {
+      const extracted = (task.result?.social_events ?? []) as ExtractedEvent[]
+      if (extracted.length === 0) {
+        setStatus('error')
+        setStatusMessage('No se extrajeron eventos del flyer.')
+      } else {
+        setPreviewEvents(extracted.map((e) => ({
+          include: true,
+          title: e.title ?? '',
+          description: e.description ?? '',
+          startsAt: toLocalDateTime(e.starts_at),
+          danceTypes: Array.isArray(e.dance_types) ? e.dance_types : [],
+          address: e.address ?? '',
+          venueDisplay: e.venue ?? '',
+          venueId: publisherVenueId,
+          inheritFromPublisher: Boolean(publisherVenueId),
+          locationId: '',
+          forceActivation: false,
+        })))
+        setStatus('idle')
+        setStatusMessage('')
+      }
+    } else {
+      setStatus('error')
+      setStatusMessage(task.error ?? 'La extracción ha fallado.')
+    }
+    setPendingTaskId(null)
+  }, [tasks, pendingTaskId, publisherVenueId])
+
   const handleExtract = async () => {
     if (!file) { setStatusMessage('Please upload an image.'); setStatus('error'); return }
     if (!publisherId.trim()) { setStatusMessage('Publisher ID is required.'); setStatus('error'); return }
-    setStatus('sending')
+    setStatus('extracting')
     setStatusMessage('')
     try {
       const form = new FormData()
       form.append('image', file)
       const trimmedMsg = message.trim()
       if (trimmedMsg) form.append('message', trimmedMsg)
-      const res = await apiClient.post<{ social_events: ExtractedEvent[] }>(
+      if (publisherId.trim()) form.append('publisher_id', publisherId.trim())
+      const res = await apiClient.post<{ task_id: string }>(
         'social-events/extract-from-image-preview',
         form
       )
-      const extracted = res.social_events ?? []
-      if (extracted.length === 0) {
-        setStatus('error')
-        setStatusMessage('No events were extracted from the flyer.')
-        return
-      }
-      setPreviewEvents(extracted.map((e) => ({
-        include: true,
-        title: e.title ?? '',
-        description: e.description ?? '',
-        startsAt: toLocalDateTime(e.starts_at),
-        danceTypes: Array.isArray(e.dance_types) ? e.dance_types : [],
-        address: e.address ?? '',
-        venueDisplay: e.venue ?? '',
-        venueId: publisherVenueId,
-        inheritFromPublisher: Boolean(publisherVenueId),
-        locationId: '',
-        forceActivation: false,
-      })))
-      setStatus('idle')
-      setStatusMessage('')
+      registerTask(res.task_id)
+      setPendingTaskId(res.task_id)
     } catch (e) {
-      setStatusMessage(e instanceof Error ? e.message : 'Failed to extract events from flyer')
+      setStatusMessage(e instanceof Error ? e.message : 'Failed to start extraction')
       setStatus('error')
     }
   }
@@ -294,6 +339,11 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
       }
       setStatus('success')
       setStatusMessage(`Created ${selected.length} social event${selected.length === 1 ? '' : 's'}.`)
+      if (resumeTask) {
+        complete(resumeTask.id).catch(() => {})
+      } else if (pendingTaskId) {
+        complete(pendingTaskId).catch(() => {})
+      }
       setFile(null)
       setMessage('')
       setPostUrl('')
@@ -355,8 +405,11 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
     setCreateLocationUrl('')
     setCreateLocationStatus('idle')
     setCreateLocationMsg('')
+    setPendingTaskId(null)
     onClose()
   }
+
+  const isResume = Boolean(resumeTask)
 
   const activeEvent = activeEventIndex !== null ? previewEvents[activeEventIndex] ?? null : null
   const canInheritLocation =
@@ -382,17 +435,17 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
             <Button
               variant="secondary"
               onClick={handleExtract}
-              loading={status === 'sending' && previewEvents.length === 0}
-              disabled={status === 'sending' || !file || !publisherId.trim()}
+              loading={status === 'extracting'}
+              disabled={status === 'extracting' || status === 'sending' || !file || !publisherId.trim()}
             >
-              {status === 'sending' && previewEvents.length === 0 ? 'Extracting…' : 'Extract events'}
+              {status === 'extracting' ? 'Extrayendo…' : 'Extract events'}
             </Button>
             <Button
               onClick={handleCreateSelected}
-              loading={status === 'sending' && previewEvents.length > 0}
-              disabled={status === 'sending' || previewEvents.filter((e) => e.include).length === 0}
+              loading={status === 'sending'}
+              disabled={status === 'extracting' || status === 'sending' || previewEvents.filter((e) => e.include).length === 0}
             >
-              {status === 'sending' && previewEvents.length > 0
+              {status === 'sending'
                 ? 'Creating…'
                 : `Create selected (${previewEvents.filter((e) => e.include).length})`}
             </Button>
@@ -400,9 +453,18 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-text/60">
-            Upload an event flyer image and extract events using AI. Publisher ID is required; venue ID is optional.
-          </p>
+          {isResume ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+              <p className="text-sm font-medium text-amber-500">Reanudando extracción anterior</p>
+              <p className="mt-0.5 text-xs text-text/60">
+                Los eventos ya han sido extraídos. Sube de nuevo el flyer para poder crearlos.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-text/60">
+              Upload an event flyer image and extract events using AI. Publisher ID is required; venue ID is optional.
+            </p>
+          )}
 
           {/* Image */}
           <div className="flex flex-col gap-1.5">
@@ -485,6 +547,15 @@ export function ProcessEventFlyerDialog({ open, onClose }: Props) {
             </div>
           )}
 
+          {status === 'extracting' && (
+            <div className="flex items-center gap-3 rounded-lg border border-text/10 bg-raised px-4 py-3">
+              <Spinner size="sm" />
+              <div>
+                <p className="text-sm text-text">Extrayendo eventos en segundo plano…</p>
+                <p className="text-xs text-text/50 mt-0.5">Puedes cerrar este diálogo y volver cuando termine.</p>
+              </div>
+            </div>
+          )}
           {status === 'success' && <Alert variant="good">{statusMessage}</Alert>}
           {status === 'error' && <Alert variant="critical">{statusMessage}</Alert>}
         </div>

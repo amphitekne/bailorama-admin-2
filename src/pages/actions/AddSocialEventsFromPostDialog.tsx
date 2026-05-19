@@ -7,6 +7,7 @@ import { Toggle } from '../../components/ui/Toggle'
 import { Alert } from '../../components/ui/Alert'
 import { Spinner } from '../../components/ui/Spinner'
 import { apiClient } from '../../api/client'
+import { useTaskManager } from '../../context/TaskContext'
 import { AddPublisherDialog } from './AddPublisherDialog'
 import { AddVenueDialog } from './AddVenueDialog'
 
@@ -48,6 +49,7 @@ function IconBtn({ onClick, title, children }: { onClick: () => void; title: str
 }
 
 export function AddSocialEventsFromPostDialog({ open, onClose }: Props) {
+  const { registerTask } = useTaskManager()
   const [postUrl, setPostUrl] = useState('')
   const [publisherId, setPublisherId] = useState('')
   const [venueId, setVenueId] = useState('')
@@ -128,7 +130,7 @@ export function AddSocialEventsFromPostDialog({ open, onClose }: Props) {
     setStatus('submitting')
     setMessage('')
     try {
-      const res = await apiClient.post<{ social_events: Array<{ id: string }> }>(
+      const res = await apiClient.post<{ task_id: string }>(
         'social-events/create-from-instagram-post-url',
         {
           instagram_post_url: postUrl.trim(),
@@ -137,9 +139,9 @@ export function AddSocialEventsFromPostDialog({ open, onClose }: Props) {
           force_activation: forceActivation,
         }
       )
-      const count = Array.isArray(res.social_events) ? res.social_events.length : 0
+      registerTask(res.task_id)
       setStatus('success')
-      setMessage(count > 0 ? `Created ${count} social event${count === 1 ? '' : 's'}.` : 'Request completed.')
+      setMessage('Procesando en segundo plano. Te notificaremos cuando el evento esté listo.')
       setPostUrl('')
       setPublisherId('')
       setVenueId('')
